@@ -16,7 +16,12 @@ pub fn is_sudoku_value(value: SudokuValueType) -> bool {
     }
 }
 
-pub type SudokuMatrixValue = SudokuMatrix<SudokuValueType>;
-pub fn new_sudoku_matrix_value() -> SudokuMatrixValue {
-    new_sudoku_matrix(SUDOKU_UNKNOWN)
+pub struct SudokuMatrixValue {
+    pub matrix: SudokuMatrix<SudokuValueType>
+}
+
+impl SudokuMatrixValue {
+    pub fn new() -> SudokuMatrixValue {
+        SudokuMatrixValue { matrix: new_sudoku_matrix(SUDOKU_UNKNOWN) }
+    }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::entity::{SQUARE_INNER_LEN, SQUARE_INNER_NUM, SQUARE_OUTER_LEN};
 
 /// 元素的位置
@@ -11,23 +13,23 @@ pub struct SudokuRuler {
 }
 
 /// 三大规则：行、列、九宫格内数字不重复
-pub type SudokuRulerLoop = [SudokuRuler; 3];
-fn gen_sudoku_loop() -> SudokuRulerLoop {
-    let mut sudoku_loop: SudokuRulerLoop = [SudokuRuler {
+pub type RulerLoop = [SudokuRuler; 3];
+fn gen_ruler_loop() -> RulerLoop {
+    let mut ruler_loop: RulerLoop = [SudokuRuler {
         partitions: [[(0, 0); SQUARE_OUTER_LEN]; SQUARE_OUTER_LEN],
     }; 3];
 
     // row
     for row in 0..SQUARE_OUTER_LEN {
         for col in 0..SQUARE_OUTER_LEN {
-            sudoku_loop[0].partitions[row][col] = (row, col);
+            ruler_loop[0].partitions[row][col] = (row, col);
         }
     }
 
     // column
     for col in 0..SQUARE_OUTER_LEN {
         for row in 0..SQUARE_OUTER_LEN {
-            sudoku_loop[1].partitions[col][row] = (row, col);
+            ruler_loop[1].partitions[col][row] = (row, col);
         }
     }
 
@@ -43,7 +45,7 @@ fn gen_sudoku_loop() -> SudokuRulerLoop {
             let mut element_num = 0;
             for row in row_start..row_final {
                 for col in col_start..col_final {
-                    sudoku_loop[2].partitions[each_num][element_num] = (row, col);
+                    ruler_loop[2].partitions[each_num][element_num] = (row, col);
                     element_num += 1;
                 }
             }
@@ -52,30 +54,62 @@ fn gen_sudoku_loop() -> SudokuRulerLoop {
         }
     }
 
-    sudoku_loop
+    ruler_loop
 }
 
-static mut RULER_LOOP: Option<SudokuRulerLoop> = None;
+pub type RulerPartitionMap = HashMap<Position, [[Position; SQUARE_OUTER_LEN]; 3]>;
+fn gen_ruler_partition_map(ruler_loop: &RulerLoop) -> RulerPartitionMap {
+    let mut map: RulerPartitionMap = HashMap::new();
+    for row in 0..SQUARE_OUTER_LEN {
+        for col in 0..SQUARE_OUTER_LEN {
+            map.insert((row, col), [[(0, 0); SQUARE_OUTER_LEN]; 3]);
+        }
+    }
 
-pub fn init_sudoku_loop() {
+    for (i, ruler) in ruler_loop.iter().enumerate() {
+        for partition in ruler.partitions.iter() {
+            for position in partition.iter() {
+                map.get_mut(position).unwrap()[i] = *partition;
+            }
+        }
+    }
+
+    map
+}
+
+struct RulerContainer {
+    ruler_loop: RulerLoop,
+    partition_map: RulerPartitionMap,
+}
+
+static mut RULER_CONTAINER: Option<RulerContainer> = None;
+pub fn init() {
+    let ruler_loop = gen_ruler_loop();
     unsafe {
-        RULER_LOOP = Some(gen_sudoku_loop());
+        RULER_CONTAINER = Some(RulerContainer {
+            ruler_loop,
+            partition_map: gen_ruler_partition_map(&ruler_loop),
+        })
     }
 }
 
-pub fn get_sudoku_loop() -> SudokuRulerLoop {
-    unsafe { RULER_LOOP.unwrap() }
+pub fn get_sudoku_ruler_loop() -> RulerLoop {
+    unsafe { RULER_CONTAINER.as_ref().unwrap().ruler_loop }
+}
+
+pub fn get_sudoku_ruler_partition_map(pos: &Position) -> [[Position; SQUARE_OUTER_LEN]; 3] {
+    unsafe { *RULER_CONTAINER.as_ref().unwrap().partition_map.get(pos).unwrap() }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::sudoku::entity::new_sudoku_matrix_value;
+    use crate::sudoku::entity::SudokuMatrixValue;
 
     use super::*;
 
     #[test]
     fn test() {
-        let sudoku_loop = gen_sudoku_loop();
+        let sudoku_loop = gen_ruler_loop();
 
         println!("========= >>>>>> row <<<<<< =========");
         let row_ruler = sudoku_loop[0];
@@ -90,14 +124,14 @@ mod tests {
         }
 
         println!("========= >>>>>> matrix <<<<<< =========");
-        let mut matrix = new_sudoku_matrix_value();
+        let mut matrix_value = SudokuMatrixValue::new();
         let matrix_ruler = sudoku_loop[2];
         for (i, l) in matrix_ruler.partitions.iter().enumerate() {
             for (x, y) in l {
-                matrix[*x][*y] = i;
+                matrix_value.matrix[*x][*y] = i;
             }
         }
-        for l in matrix.iter() {
+        for l in matrix_value.matrix.iter() {
             println!("{:?}", l);
         }
     }

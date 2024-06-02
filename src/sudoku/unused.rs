@@ -1,24 +1,24 @@
 #![allow(dead_code)]
 
 use super::{
-    entity::{is_sudoku_value, new_sudoku_matrix_value, SudokuMatrixValue, SQUARE_OUTER_LEN},
-    rulers::get_sudoku_loop,
+    entity::{is_sudoku_value, new_sudoku_matrix, SudokuMatrix, SudokuValueType, SQUARE_OUTER_LEN},
+    rulers::get_sudoku_ruler_loop,
 };
 
 pub struct Map {
-    value: SudokuMatrixValue,
+    value: SudokuMatrix<SudokuValueType>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ProbabilyMap {
-    value: SudokuMatrixValue,
+    value: SudokuMatrix<SudokuValueType>,
 }
 
 impl Map {}
 
 impl Into<ProbabilyMap> for Map {
     fn into(self) -> ProbabilyMap {
-        let sudoku_loop = get_sudoku_loop();
+        let sudoku_loop = get_sudoku_ruler_loop();
 
         let mut pmap = ProbabilyMap::new();
         for ruler in sudoku_loop.iter() {
@@ -43,7 +43,7 @@ impl Into<ProbabilyMap> for Map {
 impl ProbabilyMap {
     pub fn new() -> ProbabilyMap {
         ProbabilyMap {
-            value: new_sudoku_matrix_value(),
+            value: new_sudoku_matrix(0),
         }
     }
 
@@ -64,7 +64,7 @@ impl ProbabilyMap {
 
 #[cfg(test)]
 mod tests {
-    use crate::sudoku::rulers::init_sudoku_loop;
+    use crate::sudoku::rulers::init;
 
     use super::*;
 
@@ -97,7 +97,7 @@ mod tests {
             ],
         };
 
-        init_sudoku_loop();
+        init();
         let pmap: ProbabilyMap = map.into();
         assert_eq!(
             pmap,
@@ -137,7 +137,7 @@ mod tests {
             ],
         };
 
-        init_sudoku_loop();
+        init();
         let pmap: ProbabilyMap = map.into();
         for ll in pmap.value.iter() {
             println!("{:?}", ll);

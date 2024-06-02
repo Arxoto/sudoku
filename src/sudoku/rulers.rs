@@ -12,12 +12,13 @@ pub struct SudokuRuler {
     pub partitions: [PositionPartition; SQUARE_OUTER_LEN],
 }
 
+pub const RULER_COUNT: usize = 3;
 /// 三大规则：行、列、九宫格内数字不重复
-pub type RulerLoop = [SudokuRuler; 3];
+pub type RulerLoop = [SudokuRuler; RULER_COUNT];
 fn gen_ruler_loop() -> RulerLoop {
     let mut ruler_loop: RulerLoop = [SudokuRuler {
         partitions: [[(0, 0); SQUARE_OUTER_LEN]; SQUARE_OUTER_LEN],
-    }; 3];
+    }; RULER_COUNT];
 
     // row
     for row in 0..SQUARE_OUTER_LEN {
@@ -57,12 +58,12 @@ fn gen_ruler_loop() -> RulerLoop {
     ruler_loop
 }
 
-pub type RulerPartitionMap = HashMap<Position, [[Position; SQUARE_OUTER_LEN]; 3]>;
+pub type RulerPartitionMap = HashMap<Position, [[Position; SQUARE_OUTER_LEN]; RULER_COUNT]>;
 fn gen_ruler_partition_map(ruler_loop: &RulerLoop) -> RulerPartitionMap {
     let mut map: RulerPartitionMap = HashMap::new();
     for row in 0..SQUARE_OUTER_LEN {
         for col in 0..SQUARE_OUTER_LEN {
-            map.insert((row, col), [[(0, 0); SQUARE_OUTER_LEN]; 3]);
+            map.insert((row, col), [[(0, 0); SQUARE_OUTER_LEN]; RULER_COUNT]);
         }
     }
 
@@ -97,7 +98,7 @@ pub fn get_sudoku_ruler_loop() -> RulerLoop {
     unsafe { RULER_CONTAINER.as_ref().unwrap().ruler_loop }
 }
 
-pub fn get_sudoku_ruler_partition_map(pos: &Position) -> [[Position; SQUARE_OUTER_LEN]; 3] {
+pub fn get_sudoku_ruler_partition_map(pos: &Position) -> [[Position; SQUARE_OUTER_LEN]; RULER_COUNT] {
     unsafe { *RULER_CONTAINER.as_ref().unwrap().partition_map.get(pos).unwrap() }
 }
 

@@ -1,55 +1,49 @@
-use super::entity::{MATRIX_INNER_COUNT, MATRIX_INNER_LEN, MATRIX_LEN};
+use super::entity::{SQUARE_INNER_LEN, SQUARE_INNER_NUM, SQUARE_OUTER_LEN};
 
 /// 元素的位置
-pub type SudokuPosition = (usize, usize);
+pub type Position = (usize, usize);
 /// 划分后同一系列元素
-pub type SudokuCollection = [SudokuPosition; MATRIX_LEN];
+pub type PositionPartition = [Position; SQUARE_OUTER_LEN];
 /// 根据规则进行不同划分 行以行分 列以列分
-pub type SudokuRuler = [SudokuCollection; MATRIX_LEN];
-/// 三大规则：行、列、九宫格内数字不重复
-pub type SudokuLoop = [SudokuRuler; 3];
-
-pub const INIT_POS: SudokuPosition = (0, 0);
-pub const INIT_COL: SudokuCollection = [INIT_POS; MATRIX_LEN];
-pub const INIT_RUL: SudokuRuler = [INIT_COL; MATRIX_LEN];
-pub const INIT_LOP: SudokuLoop = [INIT_RUL; 3];
-
-pub static mut SUDOKU_LOOP: Option<SudokuLoop> = None;
-pub fn init_sudoku_loop() {
-    unsafe {
-        SUDOKU_LOOP = Some(gen_sudoku_loop());
-    }
+#[derive(Copy, Clone)]
+pub struct SudokuRuler {
+    pub partitions: [PositionPartition; SQUARE_OUTER_LEN],
 }
-pub fn gen_sudoku_loop() -> SudokuLoop {
-    let mut sudoku_loop = INIT_LOP;
+
+/// 三大规则：行、列、九宫格内数字不重复
+pub type SudokuRulerLoop = [SudokuRuler; 3];
+fn gen_sudoku_loop() -> SudokuRulerLoop {
+    let mut sudoku_loop: SudokuRulerLoop = [SudokuRuler {
+        partitions: [[(0, 0); SQUARE_OUTER_LEN]; SQUARE_OUTER_LEN],
+    }; 3];
 
     // row
-    for row in 0..MATRIX_LEN {
-        for col in 0..MATRIX_LEN {
-            sudoku_loop[0][row][col] = (row, col);
+    for row in 0..SQUARE_OUTER_LEN {
+        for col in 0..SQUARE_OUTER_LEN {
+            sudoku_loop[0].partitions[row][col] = (row, col);
         }
     }
 
     // column
-    for col in 0..MATRIX_LEN {
-        for row in 0..MATRIX_LEN {
-            sudoku_loop[1][col][row] = (row, col);
+    for col in 0..SQUARE_OUTER_LEN {
+        for row in 0..SQUARE_OUTER_LEN {
+            sudoku_loop[1].partitions[col][row] = (row, col);
         }
     }
 
     // matrix
     let mut each_num = 0;
-    for row_m in 0..MATRIX_INNER_COUNT {
-        for col_m in 0..MATRIX_INNER_COUNT {
-            let row_start = row_m * MATRIX_INNER_LEN;
-            let row_final = row_m * MATRIX_INNER_LEN + MATRIX_INNER_LEN;
-            let col_start = col_m * MATRIX_INNER_LEN;
-            let col_final = col_m * MATRIX_INNER_LEN + MATRIX_INNER_LEN;
+    for row_m in 0..SQUARE_INNER_NUM {
+        for col_m in 0..SQUARE_INNER_NUM {
+            let row_start = row_m * SQUARE_INNER_LEN;
+            let row_final = row_m * SQUARE_INNER_LEN + SQUARE_INNER_LEN;
+            let col_start = col_m * SQUARE_INNER_LEN;
+            let col_final = col_m * SQUARE_INNER_LEN + SQUARE_INNER_LEN;
 
             let mut element_num = 0;
             for row in row_start..row_final {
                 for col in col_start..col_final {
-                    sudoku_loop[2][each_num][element_num] = (row, col);
+                    sudoku_loop[2].partitions[each_num][element_num] = (row, col);
                     element_num += 1;
                 }
             }
@@ -61,32 +55,44 @@ pub fn gen_sudoku_loop() -> SudokuLoop {
     sudoku_loop
 }
 
+static mut RULER_LOOP: Option<SudokuRulerLoop> = None;
+
+pub fn init_sudoku_loop() {
+    unsafe {
+        RULER_LOOP = Some(gen_sudoku_loop());
+    }
+}
+
+pub fn get_sudoku_loop() -> SudokuRulerLoop {
+    unsafe { RULER_LOOP.unwrap() }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::sudoku::entity::new_nine_nine_matrix;
+    use crate::sudoku::entity::new_sudoku_matrix_value;
 
     use super::*;
 
     #[test]
     fn test() {
         let sudoku_loop = gen_sudoku_loop();
-        
+
         println!("========= >>>>>> row <<<<<< =========");
         let row_ruler = sudoku_loop[0];
-        for l in row_ruler.iter() {
+        for l in row_ruler.partitions.iter() {
             println!("{:?}", l);
         }
-        
+
         println!("========= >>>>>> col <<<<<< =========");
         let col_ruler = sudoku_loop[1];
-        for l in col_ruler.iter() {
+        for l in col_ruler.partitions.iter() {
             println!("{:?}", l);
         }
-        
+
         println!("========= >>>>>> matrix <<<<<< =========");
-        let mut matrix = new_nine_nine_matrix();
+        let mut matrix = new_sudoku_matrix_value();
         let matrix_ruler = sudoku_loop[2];
-        for (i, l) in matrix_ruler.iter().enumerate() {
+        for (i, l) in matrix_ruler.partitions.iter().enumerate() {
             for (x, y) in l {
                 matrix[*x][*y] = i;
             }

@@ -1,26 +1,36 @@
 use super::{
-    entity::{is_sudoku_value, new_nine_nine_matrix, NineNineMatrix, MATRIX_LEN},
-    rulers::SUDOKU_LOOP,
+    entity::{is_sudoku_value, new_sudoku_matrix_value, SudokuMatrixValue, SQUARE_OUTER_LEN},
+    rulers::get_sudoku_loop,
 };
 
+// https://sudoku.com/zh/shu-du-gui-ze/
+// https://www.conceptispuzzles.com/zh/index.aspx?uri=puzzle/sudoku/techniques
+// 基础的技巧：
+// 1、候选排除法，对有所的可能性进行枚举，并根据三大规则排除，剩下唯一值
+//    -- 程序实现简单，算法复杂度高，实际运用困难，后期才有使用价值，但候选可能性算法应该是后面所有算法的基础
+// 2、选值排除法，先选定一个已知数量最多的值，根据行列规则排除，剩下在九宫格内有唯一位置
+//    -- 实际应用最常用的技巧，上述例子中行列黑名单、九宫格白名单，未验证过黑白名单的规则互换后是否等效（感觉不等效）
+// 3、连带推理法，基于上面技巧，若九宫格内剩余多个位置，但其均在一行一列，则可将该行该列的其余位置标志黑名单，再次运用上面技巧
+// 4、可选互斥法，
+
 pub struct Map {
-    value: NineNineMatrix,
+    value: SudokuMatrixValue,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ProbabilyMap {
-    value: NineNineMatrix,
+    value: SudokuMatrixValue,
 }
 
 impl Map {}
 
 impl Into<ProbabilyMap> for Map {
     fn into(self) -> ProbabilyMap {
-        let sudoku_loop = unsafe { SUDOKU_LOOP.unwrap() };
+        let sudoku_loop = get_sudoku_loop();
 
         let mut pmap = ProbabilyMap::new();
         for ruler in sudoku_loop.iter() {
-            for ll in ruler.iter() {
+            for ll in ruler.partitions.iter() {
                 let mut count = 0;
                 for (x, y) in ll.iter() {
                     if is_sudoku_value(self.value[*x][*y]) {
@@ -41,15 +51,15 @@ impl Into<ProbabilyMap> for Map {
 impl ProbabilyMap {
     pub fn new() -> ProbabilyMap {
         ProbabilyMap {
-            value: new_nine_nine_matrix(),
+            value: new_sudoku_matrix_value(),
         }
     }
 
     pub fn find_most_probabily(self) -> (usize, usize) {
         let mut max = 0;
         let mut result = (0, 0);
-        for row in 0..MATRIX_LEN {
-            for col in 0..MATRIX_LEN {
+        for row in 0..SQUARE_OUTER_LEN {
+            for col in 0..SQUARE_OUTER_LEN {
                 if self.value[row][col] > max {
                     max = self.value[row][col];
                     result = (row, col);

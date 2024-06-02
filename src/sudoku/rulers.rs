@@ -98,8 +98,29 @@ pub fn get_sudoku_ruler_loop() -> RulerLoop {
     unsafe { RULER_CONTAINER.as_ref().unwrap().ruler_loop }
 }
 
-pub fn get_sudoku_ruler_partition_map(pos: &Position) -> [[Position; SQUARE_OUTER_LEN]; RULER_COUNT] {
-    unsafe { *RULER_CONTAINER.as_ref().unwrap().partition_map.get(pos).unwrap() }
+pub fn each_sudoku_partition<F>(mut cb: F)
+where
+    F: FnMut(usize, &PositionPartition)
+{
+    let ruler_loop = get_sudoku_ruler_loop();
+    for (ruler_id, ruler) in ruler_loop.iter().enumerate() {
+        for partition in ruler.partitions.iter() {
+            cb(ruler_id, partition);
+        }
+    }
+}
+
+pub fn get_sudoku_ruler_partition_map(
+    pos: &Position,
+) -> [[Position; SQUARE_OUTER_LEN]; RULER_COUNT] {
+    unsafe {
+        *RULER_CONTAINER
+            .as_ref()
+            .unwrap()
+            .partition_map
+            .get(pos)
+            .unwrap()
+    }
 }
 
 #[cfg(test)]

@@ -11,7 +11,7 @@ use super::{
         is_sudoku_value, new_sudoku_matrix, SudokuMatrix, SudokuMatrixValue, SudokuValueType,
         SQUARE_OUTER_LEN,
     },
-    rulers::{get_sudoku_ruler_loop, get_sudoku_ruler_partition_map, Position, RULER_COUNT},
+    rulers::{each_sudoku_partition, get_sudoku_ruler_partition_map, Position, RULER_COUNT},
 };
 
 #[derive(Copy, Clone)]
@@ -79,72 +79,141 @@ impl CandidateMatrix {
     }
 
     pub fn evolution_by_check_position(&mut self) {
-        let ruler_loop = get_sudoku_ruler_loop();
-        for (ruler_id, ruler) in ruler_loop.iter().enumerate() {
-            // ll 为某一分区
-            for ll in ruler.partitions.iter() {
-                // value_id 为某一数值 - 1
-                for value_id in 0..SQUARE_OUTER_LEN {
-                    let mut count = 0;
-                    let mut pos = [(0, 0); RULER_COUNT];
-                    for (row, col) in ll.iter() {
-                        if self.can_matrix[*row][*col].can[value_id] {
-                            count += 1;
-                            if count > RULER_COUNT {
+        each_sudoku_partition(|ruler_id, partition| {
+            for value_id in 0..SQUARE_OUTER_LEN {
+                let mut count = 0;
+                let mut pos = [(0, 0); RULER_COUNT];
+                for (row, col) in partition.iter() {
+                    if self.can_matrix[*row][*col].can[value_id] {
+                        count += 1;
+                        if count > RULER_COUNT {
+                            break;
+                        }
+                        pos[count - 1] = (*row, *col);
+                    }
+                }
+                let count = count;
+                let pos = pos;
+                match count {
+                    1 => {
+                        // 仅一个位置可选 值可确定
+                        let (row, col) = pos[0];
+                        self.can_matrix[row][col] = Candidate::new_none();
+                        self.can_matrix[row][col].can[value_id] = true;
+                    }
+                    // 多个位置可选
+                    2 => {
+                        let partition_map = get_sudoku_ruler_partition_map(&pos[0]);
+                        for (current_ruler_id, partition) in partition_map.iter().enumerate() {
+                            if ruler_id == current_ruler_id {
+                                continue;
+                            }
+                            if partition.contains(&pos[1]) {
+                                // 所有位置均在某一分区 可排除该分区其他位置
+                                for pp in partition.iter() {
+                                    if *pp != pos[0] && *pp != pos[1] {
+                                        self.can_matrix[pp.0][pp.1].can[value_id] = false;
+                                    }
+                                }
                                 break;
                             }
-                            pos[count - 1] = (*row, *col);
                         }
                     }
-                    let count = count;
-                    let pos = pos;
-                    match count {
-                        1 => {
-                            // 仅一个位置可选 值可确定
-                            let (row, col) = pos[0];
-                            self.can_matrix[row][col] = Candidate::new_none();
-                            self.can_matrix[row][col].can[value_id] = true;
-                        }
-                        // 多个位置可选
-                        2 => {
-                            let partition_map = get_sudoku_ruler_partition_map(&pos[0]);
-                            for (current_ruler_id, partition) in partition_map.iter().enumerate() {
-                                if ruler_id == current_ruler_id {
-                                    continue;
-                                }
-                                if partition.contains(&pos[1]) {
-                                    // 所有位置均在某一分区 可排除该分区其他位置
-                                    for pp in partition.iter() {
-                                        if *pp != pos[0] && *pp != pos[1] {
-                                            self.can_matrix[pp.0][pp.1].can[value_id] = false;
-                                        }
+                    3 => {
+                        let partition_map = get_sudoku_ruler_partition_map(&pos[0]);
+                        for (current_ruler_id, partition) in partition_map.iter().enumerate() {
+                            if ruler_id == current_ruler_id {
+                                continue;
+                            }
+                            if partition.contains(&pos[1]) && partition.contains(&pos[2]) {
+                                // 所有位置均在某一分区 可排除该分区其他位置
+                                for pp in partition.iter() {
+                                    if *pp != pos[0] && *pp != pos[1] && *pp != pos[2] {
+                                        self.can_matrix[pp.0][pp.1].can[value_id] = false;
                                     }
-                                    break;
                                 }
+                                break;
                             }
                         }
-                        3 => {
-                            let partition_map = get_sudoku_ruler_partition_map(&pos[0]);
-                            for (current_ruler_id, partition) in partition_map.iter().enumerate() {
-                                if ruler_id == current_ruler_id {
-                                    continue;
-                                }
-                                if partition.contains(&pos[1]) && partition.contains(&pos[2]) {
-                                    // 所有位置均在某一分区 可排除该分区其他位置
-                                    for pp in partition.iter() {
-                                        if *pp != pos[0] && *pp != pos[1] && *pp != pos[2] {
-                                            self.can_matrix[pp.0][pp.1].can[value_id] = false;
-                                        }
-                                    }
-                                    break;
-                                }
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
+
+    pub fn evolution_by_position_mutex(&mut self) {
+        each_sudoku_partition(|_, partition| {
+            // value_id -> position_id -> (row, col, is_candidate)
+            let mut candidate_map = [[(0, 0, false); SQUARE_OUTER_LEN]; SQUARE_OUTER_LEN];
+            for value_id in 0..SQUARE_OUTER_LEN {
+                for (pos_id, (row, col)) in partition.iter().enumerate() {
+                    candidate_map[value_id][pos_id] =
+                        (*row, *col, self.can_matrix[*row][*col].can[value_id]);
+                }
+            }
+            // 两两互斥
+            let mut double_map = [false; SQUARE_OUTER_LEN];
+            for (value_id, position_ids) in candidate_map.iter().enumerate() {
+                double_map[value_id] = position_ids.iter().filter(|p| p.2).count() == 2;
+            }
+            // 找到位置互斥的元素
+            let double_map = double_map;
+            for (value_id, position_ids) in candidate_map.iter().enumerate() {
+                if !double_map[value_id] {
+                    continue;
+                }
+                for second_value_id in (value_id + 1)..SQUARE_OUTER_LEN {
+                    if !double_map[second_value_id] {
+                        continue;
+                    }
+                    if *position_ids == candidate_map[second_value_id] {
+                        for (row, col, is_candidate) in position_ids.iter() {
+                            if *is_candidate {
+                                self.can_matrix[*row][*col] = Candidate::new_none();
+                                self.can_matrix[*row][*col].can[value_id] = true;
+                                self.can_matrix[*row][*col].can[second_value_id] = true;
                             }
                         }
-                        _ => {}
                     }
                 }
             }
-        }
+            // 仨仨互斥
+            let mut triple_map = [false; SQUARE_OUTER_LEN];
+            for (value_id, position_ids) in candidate_map.iter().enumerate() {
+                triple_map[value_id] = position_ids.iter().filter(|p| p.2).count() == 3;
+            }
+            // 找到位置互斥的元素
+            let triple_map = triple_map;
+            for first_value_id in 0..SQUARE_OUTER_LEN {
+                if !triple_map[first_value_id] {
+                    continue;
+                }
+                for second_value_id in (first_value_id + 1)..SQUARE_OUTER_LEN {
+                    if !triple_map[second_value_id] {
+                        continue;
+                    }
+                    for third_value_id in (second_value_id + 1)..SQUARE_OUTER_LEN {
+                        if !triple_map[third_value_id] {
+                            continue;
+                        }
+                        let position_ids = candidate_map[first_value_id];
+                        if position_ids == candidate_map[second_value_id]
+                            && position_ids == candidate_map[third_value_id]
+                        {
+                            for (row, col, is_candidate) in position_ids.iter() {
+                                if *is_candidate {
+                                    self.can_matrix[*row][*col] = Candidate::new_none();
+                                    self.can_matrix[*row][*col].can[first_value_id] = true;
+                                    self.can_matrix[*row][*col].can[second_value_id] = true;
+                                    self.can_matrix[*row][*col].can[third_value_id] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -385,6 +454,96 @@ mod tests {
         assert_eq!(
             can.can_matrix[1][8].can,
             [true, true, true, true, true, false, true, true, true]
+        );
+    }
+
+    #[test]
+    fn test_position_double_mutex() {
+        init();
+
+        let sudoku: SudokuMatrixValue = SudokuMatrixValue {
+            matrix: [
+                [0, 0, 0, 0, 0, 0, 0, 1, 2],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 6, 0, 0, 0, 0, 0, 0, 0],
+                [2, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [6, 0, 0, 0, 0, 0, 0, 0, 0],
+                [1, 2, 0, 0, 0, 0, 0, 0, 0],
+            ],
+        };
+        let mut can: CandidateMatrix = sudoku.into();
+        can.evolution();
+        can.evolution_by_position_mutex();
+        can.evolution_by_check_position();
+        // for ll in can.can_matrix.iter() {
+        //     for l in ll.iter() {
+        //         println!("{:?}", l.can);
+        //     }
+        // }
+        let next_sudoku: SudokuMatrixValue = can.into();
+        assert_eq!(
+            next_sudoku,
+            SudokuMatrixValue {
+                matrix: [
+                    [0, 0, 6, 0, 0, 0, 0, 1, 2],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 6, 0, 0, 0, 0, 0, 0, 0],
+                    [2, 1, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [6, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 2, 0, 0, 0, 0, 0, 0, 0],
+                ],
+            }
+        );
+    }
+
+    #[test]
+    fn test_position_triple_mutex() {
+        init();
+
+        let sudoku: SudokuMatrixValue = SudokuMatrixValue {
+            matrix: [
+                [0, 0, 0, 0, 0, 0, 0, 0, 6],
+                [0, 0, 0, 0, 0, 6, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [3, 0, 0, 0, 0, 0, 0, 0, 0],
+                [2, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [6, 3, 0, 0, 0, 0, 0, 0, 0],
+                [1, 2, 0, 0, 0, 0, 0, 0, 0],
+            ],
+        };
+        let mut can: CandidateMatrix = sudoku.into();
+        can.evolution();
+        can.evolution_by_position_mutex();
+        can.evolution_by_check_position();
+        // for ll in can.can_matrix.iter() {
+        //     for l in ll.iter() {
+        //         println!("{:?}", l.can);
+        //     }
+        // }
+        let next_sudoku: SudokuMatrixValue = can.into();
+        assert_eq!(
+            next_sudoku,
+            SudokuMatrixValue {
+                matrix: [
+                    [0, 0, 0, 0, 0, 0, 0, 0, 6],
+                    [0, 0, 0, 0, 0, 6, 0, 0, 0],
+                    [0, 6, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [3, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [2, 1, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [6, 3, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 2, 0, 0, 0, 0, 0, 0, 0],
+                ],
+            }
         );
     }
 }

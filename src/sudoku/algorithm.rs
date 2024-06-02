@@ -11,7 +11,7 @@ use super::{
         is_sudoku_value, new_sudoku_matrix, SudokuMatrix, SudokuMatrixValue, SudokuValueType,
         SQUARE_OUTER_LEN,
     },
-    rulers::{get_sudoku_ruler_partition_map, Position},
+    rulers::{get_sudoku_ruler_loop, get_sudoku_ruler_partition_map, Position},
 };
 
 #[derive(Copy, Clone)]
@@ -68,11 +68,37 @@ impl CandidateMatrix {
     pub fn evolution(&mut self) {
         let shadow = self.clone();
         for (row, ll) in shadow.can_matrix.iter().enumerate() {
-            for (col, value) in ll.iter().enumerate() {
-                if let Some(value) = value.only() {
+            for (col, can) in ll.iter().enumerate() {
+                if let Some(value) = can.only() {
                     let pos = (row, col);
                     self.set_partition_black_list(&value, &pos);
                     self.can_matrix[row][col].can[value - 1] = true;
+                }
+            }
+        }
+    }
+
+    pub fn evolution_by_only_one_position_in_partition(&mut self) {
+        let ruler_loop = get_sudoku_ruler_loop();
+        for ruler in ruler_loop.iter() {
+            // ll 为某一分区
+            for ll in ruler.partitions.iter() {
+                // value_id 为某一数值 - 1
+                for value_id in 0..SQUARE_OUTER_LEN {
+                    let mut count = 0;
+                    let mut pos = (0, 0);
+                    for (row, col) in ll.iter() {
+                        if self.can_matrix[*row][*col].can[value_id] {
+                            count += 1;
+                            pos = (*row, *col);
+                        }
+                    }
+                    // 仅一个位置可选 值可确定
+                    if count == 1 {
+                        let (row, col) = pos;
+                        self.can_matrix[row][col] = Candidate::new_none();
+                        self.can_matrix[row][col].can[value_id] = true;
+                    }
                 }
             }
         }
@@ -235,6 +261,45 @@ mod tests {
                     [1, 2, 3, 4, 5, 6, 7, 8, 9],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                ],
+            }
+        );
+    }
+
+    #[test]
+    fn test_evolution_by_only_one_position_in_partition() {
+        init();
+
+        let sudoku: SudokuMatrixValue = SudokuMatrixValue {
+            matrix: [
+                [0, 0, 0, 0, 0, 6, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 6],
+                [1, 2, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ],
+        };
+        let mut can: CandidateMatrix = sudoku.into();
+        can.evolution();
+        can.evolution_by_only_one_position_in_partition();
+        let next_sudoku: SudokuMatrixValue = can.into();
+        assert_eq!(
+            next_sudoku,
+            SudokuMatrixValue {
+                matrix: [
+                    [0, 0, 0, 0, 0, 6, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 6],
+                    [1, 2, 6, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0],

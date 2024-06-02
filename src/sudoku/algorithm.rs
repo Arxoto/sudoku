@@ -46,7 +46,7 @@ impl Candidate {
 
 #[derive(Clone, Copy)]
 pub struct CandidateMatrix {
-    can_matrix: SudokuMatrix<Candidate>,
+    pub can_matrix: SudokuMatrix<Candidate>,
 }
 
 impl CandidateMatrix {
@@ -219,34 +219,34 @@ impl CandidateMatrix {
 
 impl Into<SudokuMatrixValue> for CandidateMatrix {
     fn into(self) -> SudokuMatrixValue {
-        let mut result = SudokuMatrixValue::new();
+        let mut target = SudokuMatrixValue::new();
 
         for (row, ll) in self.can_matrix.iter().enumerate() {
             for (col, can) in ll.iter().enumerate() {
                 if let Some(value) = can.only() {
-                    result.matrix[row][col] = value;
+                    target.matrix[row][col] = value;
                 }
             }
         }
 
-        result
+        target
     }
 }
 
 impl Into<CandidateMatrix> for SudokuMatrixValue {
     fn into(self) -> CandidateMatrix {
-        let mut result = CandidateMatrix::new();
+        let mut target = CandidateMatrix::new();
 
         for (row, ll) in self.matrix.iter().enumerate() {
             for (col, value) in ll.iter().enumerate() {
                 if is_sudoku_value(*value) {
-                    result.can_matrix[row][col] = Candidate::new_none();
-                    result.can_matrix[row][col].can[value - 1] = true;
+                    target.can_matrix[row][col] = Candidate::new_none();
+                    target.can_matrix[row][col].can[value - 1] = true;
                 }
             }
         }
 
-        result
+        target
     }
 }
 

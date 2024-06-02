@@ -49,16 +49,16 @@ impl ProbabilyMap {
 
     pub fn find_most_probabily(self) -> (usize, usize) {
         let mut max = 0;
-        let mut result = (0, 0);
+        let mut position = (0, 0);
         for row in 0..SQUARE_OUTER_LEN {
             for col in 0..SQUARE_OUTER_LEN {
                 if self.value[row][col] > max {
                     max = self.value[row][col];
-                    result = (row, col);
+                    position = (row, col);
                 }
             }
         }
-        result
+        position
     }
 }
 

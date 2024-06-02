@@ -27,11 +27,11 @@ impl Candidate {
     }
     pub fn new_none() -> Candidate {
         Candidate {
-            can: [true; SQUARE_OUTER_LEN],
+            can: [false; SQUARE_OUTER_LEN],
         }
     }
 
-    pub fn only(self) -> Option<SudokuValueType> {
+    pub fn only(&self) -> Option<SudokuValueType> {
         let mut count = 0;
         let mut some = 0;
         for (i, ele) in self.can.iter().enumerate() {
@@ -44,6 +44,7 @@ impl Candidate {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct CandidateMatrix {
     can_matrix: SudokuMatrix<Candidate>,
 }
@@ -54,18 +55,43 @@ impl CandidateMatrix {
             can_matrix: new_sudoku_matrix(Candidate::new_all()),
         }
     }
+
+    fn set_partition_black_list(&mut self, value: &SudokuValueType, pos: &Position) {
+        let partition_list = get_sudoku_ruler_partition_map(pos);
+        for ll in partition_list.iter() {
+            for (row, col) in ll.iter() {
+                self.can_matrix[*row][*col].can[value - 1] = false;
+            }
+        }
+    }
+
+    pub fn evolution(&mut self) {
+        let shadow = self.clone();
+        for (row, ll) in shadow.can_matrix.iter().enumerate() {
+            for (col, value) in ll.iter().enumerate() {
+                if let Some(value) = value.only() {
+                    let pos = (row, col);
+                    self.set_partition_black_list(&value, &pos);
+                    self.can_matrix[row][col].can[value - 1] = true;
+                }
+            }
+        }
+    }
 }
 
-fn set_partition_black_list(
-    value: &SudokuValueType,
-    pos: &Position,
-    can_matrix: &mut CandidateMatrix,
-) {
-    let partition_list = get_sudoku_ruler_partition_map(pos);
-    for ll in partition_list.iter() {
-        for (row, col) in ll.iter() {
-            can_matrix.can_matrix[*row][*col].can[value - 1] = false;
+impl Into<SudokuMatrixValue> for CandidateMatrix {
+    fn into(self) -> SudokuMatrixValue {
+        let mut result = SudokuMatrixValue::new();
+
+        for (row, ll) in self.can_matrix.iter().enumerate() {
+            for (col, can) in ll.iter().enumerate() {
+                if let Some(value) = can.only() {
+                    result.matrix[row][col] = value;
+                }
+            }
         }
+
+        result
     }
 }
 
@@ -76,10 +102,8 @@ impl Into<CandidateMatrix> for SudokuMatrixValue {
         for (row, ll) in self.matrix.iter().enumerate() {
             for (col, value) in ll.iter().enumerate() {
                 if is_sudoku_value(*value) {
-                    let pos = (row, col);
                     result.can_matrix[row][col] = Candidate::new_none();
-
-                    set_partition_black_list(value, &pos, &mut result);
+                    result.can_matrix[row][col].can[value - 1] = true;
                 }
             }
         }
@@ -90,12 +114,14 @@ impl Into<CandidateMatrix> for SudokuMatrixValue {
 
 #[cfg(test)]
 mod tests {
+    use crate::sudoku::rulers::init;
+
     use super::*;
 
     #[test]
-    fn test() {
-        crate::sudoku::rulers::init();
-        
+    fn test_into_candidate_and_evolution() {
+        init();
+
         let sudoku: SudokuMatrixValue = SudokuMatrixValue {
             matrix: [
                 [0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -110,16 +136,113 @@ mod tests {
             ],
         };
         let can: CandidateMatrix = sudoku.into();
+        assert_eq!(can.can_matrix[0][0].can, [true; 9]);
+        assert_eq!(
+            can.can_matrix[1][1].can,
+            [true, false, false, false, false, false, false, false, false]
+        );
+        assert_eq!(
+            can.can_matrix[2][2].can,
+            [false, true, false, false, false, false, false, false, false]
+        );
+        assert_eq!(
+            can.can_matrix[3][3].can,
+            [false, false, true, false, false, false, false, false, false]
+        );
+
+        // 演进
+        let mut can = can;
+        can.evolution();
         assert_eq!(can.can_matrix[8][8].can, [true; 9]);
 
         // 1 2 在九宫格内
-        assert_eq!(can.can_matrix[0][0].can, [false, false, true, true, true, true, true, true, true]);
+        assert_eq!(
+            can.can_matrix[0][0].can,
+            [false, false, true, true, true, true, true, true, true]
+        );
 
         // 行列规则
-        assert_eq!(can.can_matrix[1][8].can, [false, true, true, true, true, true, true, true, true]);
-        assert_eq!(can.can_matrix[8][2].can, [true, false, true, true, true, true, true, true, true]);
+        assert_eq!(
+            can.can_matrix[1][8].can,
+            [false, true, true, true, true, true, true, true, true]
+        );
+        assert_eq!(
+            can.can_matrix[8][2].can,
+            [true, false, true, true, true, true, true, true, true]
+        );
 
         // 3上面位置 与2同行 与3九宫格
-        assert_eq!(can.can_matrix[2][3].can, [true, false, false, true, true, true, true, true, true]);
+        assert_eq!(
+            can.can_matrix[2][3].can,
+            [true, false, false, true, true, true, true, true, true]
+        );
+    }
+
+    #[test]
+    fn test_into() {
+        init();
+
+        let sudoku: SudokuMatrixValue = SudokuMatrixValue {
+            matrix: [
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 2, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 3, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ],
+        };
+
+        let can: CandidateMatrix = sudoku.into();
+        let next_sudoku: SudokuMatrixValue = can.into();
+
+        assert_eq!(sudoku, next_sudoku);
+    }
+
+    #[test]
+    fn test_evolution_and_into() {
+        init();
+
+        let sudoku: SudokuMatrixValue = SudokuMatrixValue {
+            matrix: [
+                [1, 0, 3, 4, 5, 6, 7, 8, 9],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ],
+        };
+
+        let mut can: CandidateMatrix = sudoku.into();
+        can.evolution();
+        // for ll in can.can_matrix.iter() {
+        //     for l in ll.iter() {
+        //         println!("{:?}", l.can);
+        //     }
+        // }
+        let next_sudoku: SudokuMatrixValue = can.into();
+        assert_eq!(
+            next_sudoku,
+            SudokuMatrixValue {
+                matrix: [
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                ],
+            }
+        );
     }
 }

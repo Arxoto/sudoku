@@ -16,6 +16,7 @@ pub fn is_sudoku_value(value: SudokuValueType) -> bool {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SudokuMatrixValue {
     pub matrix: SudokuMatrix<SudokuValueType>
 }

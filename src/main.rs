@@ -1,8 +1,9 @@
-use std::io::Read;
-
 use sudoku::{
     algorithm::CandidateMatrix,
-    entity::{is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_OUTER_LEN, SUDOKU_UNKNOWN},
+    entity::{
+        is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_INNER_LEN, SQUARE_OUTER_LEN,
+        SUDOKU_UNKNOWN,
+    },
     rulers::init,
 };
 
@@ -38,10 +39,63 @@ fn show(matrix: &SudokuMatrixValue) {
     }
 }
 
+fn show_can(can: &CandidateMatrix) {
+    for (i, line) in can.can_matrix.iter().enumerate() {
+        for row in 0..SQUARE_INNER_LEN {
+            for (j, c) in line.iter().enumerate() {
+                for col in 0..SQUARE_INNER_LEN {
+                    let value = row * SQUARE_INNER_LEN + col;
+                    if c.can[value] {
+                        print!("{} ", value + 1);
+                    } else {
+                        print!("  ");
+                    }
+                }
+                if (j + 1) % SQUARE_INNER_LEN == 0 {
+                    print!(" | ");
+                } else {
+                    print!("   ");
+                }
+            }
+            println!();
+        }
+        if (i + 1) % SQUARE_INNER_LEN == 0 {
+            for _ in 0..SQUARE_OUTER_LEN {
+                print!("______   ");
+            }
+        } else {
+            for _ in 0..SQUARE_OUTER_LEN {
+                print!("       + ");
+            }
+        }
+        println!();
+    }
+}
+
 /// > Get-Content .\input | .\sudoku.exe
 fn main() -> std::io::Result<()> {
-    let mut input_data = String::new();
-    std::io::stdin().read_to_string(&mut input_data)?;
+    let mut is_show_can = true;
+    for ele in std::env::args().skip(0) {
+        match &ele as &str {
+            "n" => is_show_can = false,
+            _ => {}
+        }
+    }
+    let is_show_can = is_show_can;
+
+    #[cfg(debug_assertions)]
+    let input_data = {
+        let mut path = std::env::current_dir()?;
+        path.push("sudoku_matrix");
+        std::fs::read_to_string(path)?
+    };
+
+    #[cfg(not(debug_assertions))]
+    let input_data = {
+        let mut input_data = String::new();
+        std::io::stdin().read_to_string(&mut input_data)?;
+        input_data
+    };
 
     let sudoku = from_string(&input_data);
     show(&sudoku);
@@ -64,6 +118,10 @@ fn main() -> std::io::Result<()> {
         can.evolution_by_position_mutex();
         can.evolution_by_check_position();
         show(&Into::<SudokuMatrixValue>::into(can));
+        if is_show_can {
+            println!();
+            show_can(&can);
+        }
     }
 
     Ok(())

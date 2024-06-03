@@ -2,7 +2,7 @@ use std::io::Read;
 
 use sudoku::{
     algorithm::CandidateMatrix,
-    entity::{is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_OUTER_LEN},
+    entity::{is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_OUTER_LEN, SUDOKU_UNKNOWN},
     rulers::init,
 };
 
@@ -13,9 +13,8 @@ fn from_string(s: &String) -> SudokuMatrixValue {
     let mut matrix = SudokuMatrixValue::new();
     let (mut row, mut col) = (0, 0);
     for value_origin in s.chars().map(|c| c.to_digit(10)) {
-        let value: SudokuValueType = value_origin.unwrap_or(0) as SudokuValueType;
-        if is_sudoku_value(value) {
-            col += 1;
+        let value: SudokuValueType = value_origin.unwrap_or(u32::MAX) as SudokuValueType;
+        if value == SUDOKU_UNKNOWN || is_sudoku_value(value) {
             if col >= SQUARE_OUTER_LEN {
                 col = 0;
                 row += 1;
@@ -24,6 +23,7 @@ fn from_string(s: &String) -> SudokuMatrixValue {
                 break;
             }
             matrix.matrix[row][col] = value;
+            col += 1;
         }
     }
     matrix

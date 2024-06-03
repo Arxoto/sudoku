@@ -1,6 +1,8 @@
+use std::io::Read;
+
 use sudoku::{
     algorithm::CandidateMatrix,
-    entity::{is_sudoku_value, SudokuMatrixValue, SudokuValueType},
+    entity::{is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_OUTER_LEN},
     rulers::init,
 };
 
@@ -9,13 +11,19 @@ mod sudoku;
 fn from_string(s: &String) -> SudokuMatrixValue {
     assert!(s.is_ascii());
     let mut matrix = SudokuMatrixValue::new();
-    for (row, line) in s.split_whitespace().enumerate() {
-        assert_eq!(line.len(), 9);
-        for (col, value_origin) in line.chars().map(|c| c.to_digit(10).unwrap()).enumerate() {
-            let value: SudokuValueType = value_origin.try_into().unwrap();
-            if is_sudoku_value(value) {
-                matrix.matrix[row][col] = value;
+    let (mut row, mut col) = (0, 0);
+    for value_origin in s.chars().map(|c| c.to_digit(10)) {
+        let value: SudokuValueType = value_origin.unwrap_or(0) as SudokuValueType;
+        if is_sudoku_value(value) {
+            col += 1;
+            if col >= SQUARE_OUTER_LEN {
+                col = 0;
+                row += 1;
             }
+            if row >= SQUARE_OUTER_LEN {
+                break;
+            }
+            matrix.matrix[row][col] = value;
         }
     }
     matrix
@@ -30,27 +38,10 @@ fn show(matrix: &SudokuMatrixValue) {
     }
 }
 
+/// > Get-Content .\input | .\sudoku.exe
 fn main() -> std::io::Result<()> {
-    const RADIX: u32 = 10;
-    let x = "134";
-    println!(
-        "{}",
-        x.chars().map(|c| c.to_digit(RADIX).unwrap()).sum::<u32>()
-    );
-
-    let mut path = std::env::current_dir()?;
-    println!("The current directory is {}", path.display());
-    path.push("input");
-    if !path.exists() {
-        println!("Input to {}", path.display());
-        std::fs::File::create(path)?;
-        return Ok(());
-    }
-    if !path.is_file() {
-        println!("Not file {}", path.display());
-        return Ok(());
-    }
-    let input_data = std::fs::read_to_string(path)?;
+    let mut input_data = String::new();
+    std::io::stdin().read_to_string(&mut input_data)?;
 
     let sudoku = from_string(&input_data);
     show(&sudoku);

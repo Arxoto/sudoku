@@ -1,2 +1,3 @@
 /target
-input
+sudoku_matrix
+*.exe

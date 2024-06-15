@@ -1,10 +1,8 @@
 use sudoku::{
-    algorithm::CandidateMatrix,
-    entity::{
+    algorithm::CandidateMatrix, entity::{
         is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_INNER_LEN, SQUARE_OUTER_LEN,
         SUDOKU_UNKNOWN,
-    },
-    rulers::init,
+    }, guess::SudokuSolver, rulers::init
 };
 
 mod sudoku;
@@ -31,17 +29,19 @@ fn from_string(s: &String) -> SudokuMatrixValue {
 }
 
 fn show(matrix: &SudokuMatrixValue) {
-    println!("\n\n");
-    for line in matrix.matrix.iter() {
+    for (i, line) in matrix.matrix.iter().enumerate() {
         println!(
-            "{} {} {} {} {} {} {} {} {} ",
+            "{} {} {}  {} {} {}  {} {} {} ",
             line[0], line[1], line[2], line[3], line[4], line[5], line[6], line[7], line[8]
         );
+        if i % SQUARE_INNER_LEN == SQUARE_INNER_LEN - 1 {
+            println!();
+        }
     }
+    println!();
 }
 
 fn show_can(can: &CandidateMatrix) {
-    println!();
     for (i, line) in can.can_matrix.iter().enumerate() {
         for row in 0..SQUARE_INNER_LEN {
             for (j, c) in line.iter().enumerate() {
@@ -72,6 +72,7 @@ fn show_can(can: &CandidateMatrix) {
         }
         println!();
     }
+    println!();
 }
 
 /// > Get-Content .\input | .\sudoku.exe
@@ -113,14 +114,15 @@ fn main() -> std::io::Result<()> {
     };
 
     let sudoku = from_string(&input_data);
+    println!("sudoku matrix is:");
     show(&sudoku);
 
     init();
-    let mut can: CandidateMatrix = sudoku.into();
+    let mut can = CandidateMatrix::from(sudoku);
     loop {
         if can.finished() {
-            println!("The sudoku result of the definitive result is:");
-            show(&Into::<SudokuMatrixValue>::into(can));
+            println!("The only certain result is:");
+            show(&can.into());
             return Ok(());
         }
 
@@ -133,13 +135,19 @@ fn main() -> std::io::Result<()> {
         }
 
         if is_debug_mode {
-            show(&Into::<SudokuMatrixValue>::into(can));
+            show(&can.into());
         }
         if is_show_candi {
             show_can(&can);
         }
     }
 
-    todo!("todo guess");
+    println!("All possible result is:");
+    let mut soler = SudokuSolver::from(can);
+    soler.solver_possible();
+
+    for matrix in soler.get_all_possible_sudoku() {
+        show(matrix);
+    }
     Ok(())
 }

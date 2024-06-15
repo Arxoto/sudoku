@@ -25,4 +25,15 @@ impl SudokuMatrixValue {
     pub fn new() -> SudokuMatrixValue {
         SudokuMatrixValue { matrix: new_sudoku_matrix(SUDOKU_UNKNOWN) }
     }
+
+    pub fn next_empty_value(&self) -> Option<(usize, usize)> {
+        for i in 0..SQUARE_OUTER_LEN {
+            for j in 0..SQUARE_OUTER_LEN {
+                if !is_sudoku_value(self.matrix[i][j]) {
+                    return Some((i, j));
+                }
+            }
+        }
+        None
+    }
 }

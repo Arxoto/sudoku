@@ -44,7 +44,7 @@ impl Candidate {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct CandidateMatrix {
     pub can_matrix: SudokuMatrix<Candidate>,
 }
@@ -227,11 +227,11 @@ impl CandidateMatrix {
     }
 }
 
-impl Into<SudokuMatrixValue> for CandidateMatrix {
-    fn into(self) -> SudokuMatrixValue {
+impl From<CandidateMatrix> for SudokuMatrixValue {
+    fn from(value: CandidateMatrix) -> Self {
         let mut target = SudokuMatrixValue::new();
 
-        for (row, ll) in self.can_matrix.iter().enumerate() {
+        for (row, ll) in value.can_matrix.iter().enumerate() {
             for (col, can) in ll.iter().enumerate() {
                 if let Some(value) = can.only() {
                     target.matrix[row][col] = value;
@@ -242,12 +242,11 @@ impl Into<SudokuMatrixValue> for CandidateMatrix {
         target
     }
 }
-
-impl Into<CandidateMatrix> for SudokuMatrixValue {
-    fn into(self) -> CandidateMatrix {
+impl From<SudokuMatrixValue> for CandidateMatrix {
+    fn from(value: SudokuMatrixValue) -> Self {
         let mut target = CandidateMatrix::new();
 
-        for (row, ll) in self.matrix.iter().enumerate() {
+        for (row, ll) in value.matrix.iter().enumerate() {
             for (col, value) in ll.iter().enumerate() {
                 if is_sudoku_value(*value) {
                     target.can_matrix[row][col] = Candidate::new_none();

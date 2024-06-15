@@ -125,6 +125,7 @@ fn main() -> std::io::Result<()> {
     #[cfg(not(debug_assertions))]
     let input_data = {
         let mut input_data = String::new();
+        use std::io::Read;
         std::io::stdin().read_to_string(&mut input_data)?;
         input_data
     };

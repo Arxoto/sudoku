@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use sudoku::{
     algorithm::CandidateMatrix, entity::{
         is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_INNER_LEN, SQUARE_OUTER_LEN,
@@ -29,6 +31,7 @@ fn from_string(s: &String) -> SudokuMatrixValue {
 }
 
 fn show(matrix: &SudokuMatrixValue) {
+    println!();
     for (i, line) in matrix.matrix.iter().enumerate() {
         println!(
             "{} {} {}  {} {} {}  {} {} {} ",
@@ -42,6 +45,7 @@ fn show(matrix: &SudokuMatrixValue) {
 }
 
 fn show_can(can: &CandidateMatrix) {
+    println!();
     for (i, line) in can.can_matrix.iter().enumerate() {
         for row in 0..SQUARE_INNER_LEN {
             for (j, c) in line.iter().enumerate() {
@@ -82,6 +86,7 @@ fn main() -> std::io::Result<()> {
     let mut is_show_candi = false;
     for ele in std::env::args().skip(0) {
         match &ele as &str {
+            "h" => is_print_help = true,
             "help" => is_print_help = true,
             "debug" => is_debug_mode = true,
             "candi" => is_show_candi = true,
@@ -92,6 +97,16 @@ fn main() -> std::io::Result<()> {
 
     if is_print_help {
         println!("input to stdin a file with sudoku");
+        println!();
+        println!("power shell:");
+        println!(r"Get-Content .\sudoku_matrix | .\sudoku.exe");
+        println!();
+        println!("windows cmd:");
+        println!(r".\sudoku < .\sudoku_matrix");
+        println!();
+        println!("bash:");
+        println!(r"./sudoku < ./sudoku_matrix");
+        println!();
         println!("option:");
         println!("help -> to print help");
         println!("debug -> to show SudokuMatrix each step");

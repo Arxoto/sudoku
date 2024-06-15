@@ -14,7 +14,7 @@ use super::{
     rulers::{each_sudoku_partition, get_sudoku_ruler_partition_map, Position, RULER_COUNT},
 };
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Candidate {
     pub can: [bool; SQUARE_OUTER_LEN],
 }
@@ -44,7 +44,7 @@ impl Candidate {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct CandidateMatrix {
     pub can_matrix: SudokuMatrix<Candidate>,
 }
@@ -54,6 +54,16 @@ impl CandidateMatrix {
         CandidateMatrix {
             can_matrix: new_sudoku_matrix(Candidate::new_all()),
         }
+    }
+
+    pub fn finished(&self) -> bool {
+        let mut finished = true;
+        for ll in self.can_matrix.iter() {
+            for can in ll.iter() {
+                finished &= can.only().is_some();
+            }
+        }
+        finished
     }
 
     fn set_partition_black_list(&mut self, value: &SudokuValueType, pos: &Position) {

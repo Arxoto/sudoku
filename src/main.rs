@@ -31,6 +31,7 @@ fn from_string(s: &String) -> SudokuMatrixValue {
 }
 
 fn show(matrix: &SudokuMatrixValue) {
+    println!("\n\n");
     for line in matrix.matrix.iter() {
         println!(
             "{} {} {} {} {} {} {} {} {} ",
@@ -40,6 +41,7 @@ fn show(matrix: &SudokuMatrixValue) {
 }
 
 fn show_can(can: &CandidateMatrix) {
+    println!();
     for (i, line) in can.can_matrix.iter().enumerate() {
         for row in 0..SQUARE_INNER_LEN {
             for (j, c) in line.iter().enumerate() {
@@ -74,14 +76,27 @@ fn show_can(can: &CandidateMatrix) {
 
 /// > Get-Content .\input | .\sudoku.exe
 fn main() -> std::io::Result<()> {
-    let mut is_show_can = true;
+    let mut is_print_help = false;
+    let mut is_debug_mode = false;
+    let mut is_show_candi = false;
     for ele in std::env::args().skip(0) {
         match &ele as &str {
-            "n" => is_show_can = false,
+            "help" => is_print_help = true,
+            "debug" => is_debug_mode = true,
+            "candi" => is_show_candi = true,
             _ => {}
         }
     }
-    let is_show_can = is_show_can;
+    is_show_candi &= is_debug_mode;
+
+    if is_print_help {
+        println!("input to stdin a file with sudoku");
+        println!("option:");
+        println!("help -> to print help");
+        println!("debug -> to show SudokuMatrix each step");
+        println!("candi -> to show CandidateMatrix each step, only if debug");
+        return Ok(());
+    }
 
     #[cfg(debug_assertions)]
     let input_data = {
@@ -103,26 +118,28 @@ fn main() -> std::io::Result<()> {
     init();
     let mut can: CandidateMatrix = sudoku.into();
     loop {
-        let mut finished = true;
-        for ll in can.can_matrix.iter() {
-            for can in ll.iter() {
-                finished &= can.only().is_some();
-            }
-        }
-        if finished {
-            break;
+        if can.finished() {
+            println!("The sudoku result of the definitive result is:");
+            show(&Into::<SudokuMatrixValue>::into(can));
+            return Ok(());
         }
 
-        println!("\n\n");
+        let origin = can.clone();
         can.evolution();
         can.evolution_by_position_mutex();
         can.evolution_by_check_position();
-        show(&Into::<SudokuMatrixValue>::into(can));
-        if is_show_can {
-            println!();
+        if origin == can {
+            break;
+        }
+
+        if is_debug_mode {
+            show(&Into::<SudokuMatrixValue>::into(can));
+        }
+        if is_show_candi {
             show_can(&can);
         }
     }
 
+    todo!("todo guess");
     Ok(())
 }

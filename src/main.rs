@@ -1,10 +1,11 @@
-use std::io::Read;
-
 use sudoku::{
-    algorithm::CandidateMatrix, entity::{
+    algorithm::CandidateMatrix,
+    entity::{
         is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_INNER_LEN, SQUARE_OUTER_LEN,
         SUDOKU_UNKNOWN,
-    }, guess::SudokuSolver, rulers::init
+    },
+    guess::SudokuSolver,
+    rulers::init,
 };
 
 mod sudoku;

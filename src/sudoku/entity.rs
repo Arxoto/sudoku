@@ -18,12 +18,14 @@ pub fn is_sudoku_value(value: SudokuValueType) -> bool {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SudokuMatrixValue {
-    pub matrix: SudokuMatrix<SudokuValueType>
+    pub matrix: SudokuMatrix<SudokuValueType>,
 }
 
 impl SudokuMatrixValue {
     pub fn new() -> SudokuMatrixValue {
-        SudokuMatrixValue { matrix: new_sudoku_matrix(SUDOKU_UNKNOWN) }
+        SudokuMatrixValue {
+            matrix: new_sudoku_matrix(SUDOKU_UNKNOWN),
+        }
     }
 
     pub fn next_empty_value(&self) -> Option<(usize, usize)> {

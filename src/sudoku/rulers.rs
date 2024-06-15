@@ -100,7 +100,7 @@ pub fn get_sudoku_ruler_loop() -> RulerLoop {
 
 pub fn each_sudoku_partition<F>(mut cb: F)
 where
-    F: FnMut(usize, &PositionPartition)
+    F: FnMut(usize, &PositionPartition),
 {
     let ruler_loop = get_sudoku_ruler_loop();
     for (ruler_id, ruler) in ruler_loop.iter().enumerate() {

@@ -1,6 +1,8 @@
 use super::{
     algorithm::CandidateMatrix,
-    entity::{is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_OUTER_LEN, SUDOKU_UNKNOWN},
+    entity::{
+        is_sudoku_value, SudokuMatrixValue, SudokuValueType, SQUARE_OUTER_LEN, SUDOKU_UNKNOWN,
+    },
     rulers::{get_sudoku_ruler_partition_map, Position},
 };
 

@@ -108,7 +108,7 @@ fn main() -> std::io::Result<()> {
         println!(r"./sudoku < ./sudoku_matrix");
         println!();
         println!("option:");
-        println!("help -> to print help");
+        println!("help / h -> to print help");
         println!("debug -> to show SudokuMatrix each step");
         println!("candi -> to show CandidateMatrix each step, only if debug");
         return Ok(());
